@@ -1,0 +1,25 @@
+/* Layout defaults */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Control scroll overflow in previews */
+.table-scroll-area {
+    overflow-x: auto;
+    max-height: 32rem; 
+}
+
+/* Table header freeze effect */
+#data-table th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Shadow smoothing on focus states */
+label[for="excel-file"]:focus-within {
+    outline: 2px solid #6C1527;
+    outline-offset: 2px;
+}
