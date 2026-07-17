@@ -33,9 +33,13 @@
 
     <header class="border-b border-gray-200 bg-gray-50 p-6">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Sales KPI Dashboard</h1>
-                <p class="text-sm text-gray-500 mt-1">Upload your spreadsheet to instantly calculate and verify core transaction metrics.</p>
+            
+            <div class="flex items-center gap-4 self-start sm:self-auto">
+                <img id="brand-logo" src="oxford.png" alt="Oxford Logo" class="h-20 w-auto object-contain shrink-0" onerror="this.style.display='none'">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Sales KPI Dashboard</h1>
+                    <p class="text-sm text-gray-500 mt-1">Upload your spreadsheet to instantly calculate and verify core transaction metrics.</p>
+                </div>
             </div>
             
             <div class="flex items-center gap-3">
@@ -130,12 +134,22 @@
                 </div>
 
                 <div class="lg:col-span-5 bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                    <div class="mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">Top 15 Customers</h3>
-                        <p class="text-xs text-gray-400" id="leaderboard-subtext">Ranked by Net Total (Click to open account profile)</p>
+                    <div class="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
+                        <div>
+                            <h3 id="leaderboard-title" class="text-lg font-bold text-gray-800">Top 15 Customers</h3>
+                            <p class="text-xs text-gray-400" id="leaderboard-subtext">Ranked by Net Total (Click to open account profile)</p>
+                        </div>
+                        <div class="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm shrink-0">
+                            <button id="tab-customers" class="px-3 py-1 text-xs font-bold rounded-md transition-all bg-brand text-white">
+                                Customers
+                            </button>
+                            <button id="tab-brands" class="px-3 py-1 text-xs font-bold rounded-md transition-all text-gray-600 hover:text-gray-900">
+                                Sub Brands
+                            </button>
+                        </div>
                     </div>
                     
-                    <div class="flex-grow overflow-y-auto max-h-[480px] pr-2 space-y-3" id="leaderboard-list">
+                    <div class="flex-grow overflow-y-auto max-h-[440px] pr-2 space-y-3" id="leaderboard-list">
                         </div>
                 </div>
 
@@ -154,6 +168,7 @@
                     <div class="min-w-0 flex-1 pr-4">
                         <p class="text-xs font-semibold text-brand uppercase tracking-wider">Account Profile</p>
                         <h2 id="drawer-cust-name" class="text-xl font-bold text-gray-900 truncate mt-0.5">Customer Name</h2>
+                        
                         <div class="flex items-start gap-1 text-xs text-gray-500 mt-1 min-w-0">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
