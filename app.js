@@ -16,12 +16,15 @@ const toggleQtyBtn = document.getElementById('toggle-qty');
 
 // Leaderboard References
 const leaderboardList = document.getElementById('leaderboard-list');
+const leaderboardTitle = document.getElementById('leaderboard-title');
 const leaderboardSubtext = document.getElementById('leaderboard-subtext');
+const tabCustomers = document.getElementById('tab-customers');
+const tabBrands = document.getElementById('tab-brands');
 
 // Slide-over Drawer References
 const customerDrawer = document.getElementById('customer-drawer');
 const drawerCustName = document.getElementById('drawer-cust-name');
-const drawerCustAddress = document.getElementById('drawer-cust-address'); // New DOM link
+const drawerCustAddress = document.getElementById('drawer-cust-address');
 const drawerCustSales = document.getElementById('drawer-cust-sales');
 const drawerCustQty = document.getElementById('drawer-cust-qty');
 const drawerCustOrders = document.getElementById('drawer-cust-orders');
@@ -36,8 +39,11 @@ let globalHeaders = [];
 let globalData = [];
 let globalItemData = {}; 
 let globalCustomerData = {}; 
+let globalBrandData = {}; // Storage bucket for Sub Brand metrics
 let itemsChartInstance = null;
-let activeChartMetric = 'sales'; 
+
+let activeChartMetric = 'sales'; // 'sales' | 'qty'
+let activeLeaderboardTab = 'customers'; // 'customers' | 'brands'
 
 // 1. File Upload Handler
 fileInput.addEventListener('change', function(e) {
@@ -92,11 +98,13 @@ function calculateKPIs() {
     
     globalItemData = {}; 
     globalCustomerData = {}; 
+    globalBrandData = {}; // Reset Brand storage on recalculation
 
     const salesCol = findColumnByNames(['net total', 'net_total', 'total sales', 'sales', 'total']);
     const qtyCol = findColumnByNames(['quantity sold', 'qty sold', 'quantity', 'qty', 'items sold', 'units sold']);
     const itemCol = findColumnByNames(['item description', 'item_description', 'description', 'item', 'product name', 'product']);
     const customerCol = findColumnByNames(['customer', 'customer name', 'client', 'buyer', 'account']);
+    const brandCol = findColumnByNames(['sub brand', 'sub_brand', 'subbrand', 'brand']); // Sub brand identifier
 
     if (salesCol) {
         kpiSalesSubtext.innerHTML = `Summing column: <strong class="text-brand font-bold">"${salesCol}"</strong>`;
@@ -113,9 +121,17 @@ function calculateKPIs() {
     globalData.forEach(row => {
         if (!row || Object.keys(row).length === 0) return;
 
+        // SAFE ROW FILTERING: Only skip true Excel summary/subtotal rows.
+        // We ignore cells belonging to Brand, Customer, or Item Description when searching for "total" 
+        // to prevent discarding actual data rows like "Total Care Brand".
         let isSummaryRow = false;
         for (const key in row) {
             if (row.hasOwnProperty(key)) {
+                // If the current cell is part of our main identifier columns, skip checking it for "total"
+                if (key === brandCol || key === customerCol || key === itemCol) {
+                    continue;
+                }
+
                 const cellValue = String(row[key] || '').toLowerCase().trim();
                 if (
                     cellValue === 'total' || 
@@ -162,6 +178,18 @@ function calculateKPIs() {
                 }
                 globalCustomerData[customerName].sales += saleValue;
                 globalCustomerData[customerName].qty += qtyValue;
+            }
+        }
+
+        // Group by Sub Brand
+        if (brandCol) {
+            const brandName = String(row[brandCol] || 'Unbranded / Other').trim();
+            if (brandName) {
+                if (!globalBrandData[brandName]) {
+                    globalBrandData[brandName] = { sales: 0, qty: 0 };
+                }
+                globalBrandData[brandName].sales += saleValue;
+                globalBrandData[brandName].qty += qtyValue;
             }
         }
     });
@@ -272,75 +300,131 @@ function renderChart() {
     }
 }
 
-// 4. HTML Customer Leaderboard Render (Top 15 - Clickable)
+// 4. HTML Leaderboards Render Logic (Supports Customers & Sub Brands)
 function renderLeaderboard() {
-    if (!globalCustomerData || Object.keys(globalCustomerData).length === 0) {
-        leaderboardList.innerHTML = `
-            <div class="text-center py-8 text-gray-400 text-sm">
-                No customer column ("Customer") identified in dataset.
-            </div>`;
-        return;
-    }
-
     const isSales = activeChartMetric === 'sales';
-    leaderboardSubtext.textContent = isSales ? 'Ranked by Net Total (Click to open account profile)' : 'Ranked by Quantity Sold (Click to open account profile)';
+    const progressBarColor = isSales ? 'bg-brand' : 'bg-emerald-600';
 
-    const customersArray = Object.entries(globalCustomerData).map(([name, data]) => ({
-        name,
-        sales: data.sales,
-        qty: data.qty
-    }));
+    // RENDER BRANCH 1: Customers View
+    if (activeLeaderboardTab === 'customers') {
+        leaderboardTitle.textContent = "Top 15 Customers";
+        leaderboardSubtext.textContent = isSales 
+            ? 'Ranked by Net Total (Click to open account profile)' 
+            : 'Ranked by Quantity Sold (Click to open account profile)';
 
-    if (isSales) {
-        customersArray.sort((a, b) => b.sales - a.sales);
-    } else {
-        customersArray.sort((a, b) => b.qty - a.qty);
-    }
+        if (!globalCustomerData || Object.keys(globalCustomerData).length === 0) {
+            leaderboardList.innerHTML = `
+                <div class="text-center py-8 text-gray-400 text-sm">
+                    No customer column ("Customer") identified in dataset.
+                </div>`;
+            return;
+        }
 
-    const topCustomers = customersArray.slice(0, 15);
-    const maxValue = topCustomers.length > 0 ? (isSales ? topCustomers[0].sales : topCustomers[0].qty) : 1;
+        const customersArray = Object.entries(globalCustomerData).map(([name, data]) => ({
+            name, sales: data.sales, qty: data.qty
+        }));
 
-    let html = '';
-    topCustomers.forEach((cust, index) => {
-        const rank = index + 1;
-        const currentVal = isSales ? cust.sales : cust.qty;
-        const percentWidth = Math.max((currentVal / maxValue) * 100, 2);
+        customersArray.sort((a, b) => isSales ? b.sales - a.sales : b.qty - a.qty);
+        const topCustomers = customersArray.slice(0, 15);
+        const maxValue = topCustomers.length > 0 ? (isSales ? topCustomers[0].sales : topCustomers[0].qty) : 1;
 
-        let rankBadgeClass = 'bg-gray-200 text-gray-700';
-        if (rank === 1) rankBadgeClass = 'bg-amber-400 text-amber-950 font-bold';
-        else if (rank === 2) rankBadgeClass = 'bg-slate-300 text-slate-900 font-bold';
-        else if (rank === 3) rankBadgeClass = 'bg-amber-600 text-amber-50 font-bold';
+        let html = '';
+        topCustomers.forEach((cust, index) => {
+            const rank = index + 1;
+            const currentVal = isSales ? cust.sales : cust.qty;
+            const percentWidth = Math.max((currentVal / maxValue) * 100, 2);
 
-        const progressBarColor = isSales ? 'bg-brand' : 'bg-emerald-600';
+            // Consistent Metallic Medals
+            let rankBadgeClass = 'bg-gray-200 text-gray-700 font-medium';
+            if (rank === 1) rankBadgeClass = 'bg-amber-400 text-amber-950 font-bold shadow-sm'; // Gold
+            else if (rank === 2) rankBadgeClass = 'bg-slate-300 text-slate-900 font-bold shadow-sm'; // Silver
+            else if (rank === 3) rankBadgeClass = 'bg-orange-300 text-orange-950 font-bold shadow-sm'; // Bronze
 
-        const formattedVal = isSales 
-            ? '₱' + currentVal.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-            : currentVal.toLocaleString() + ' units';
+            const formattedVal = isSales 
+                ? '₱' + currentVal.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                : currentVal.toLocaleString() + ' units';
 
-        html += `
-            <button onclick="openCustomerProfile('${encodeURIComponent(cust.name)}')" 
-                    class="w-full text-left bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5 transition duration-150 hover:shadow-md hover:border-gray-300 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-brand/20">
-                <div class="flex items-center justify-between w-full">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadgeClass}">
-                            ${rank}
+            html += `
+                <button onclick="openCustomerProfile('${encodeURIComponent(cust.name)}')" 
+                        class="w-full text-left bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5 transition duration-150 hover:shadow-md hover:border-gray-300 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-brand/20">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadgeClass}">
+                                ${rank}
+                            </span>
+                            <p class="text-sm font-semibold text-gray-800 truncate">${cust.name}</p>
+                        </div>
+                        <span class="text-xs font-extrabold text-gray-900 whitespace-nowrap pl-2 flex items-center gap-1.5">
+                            ${formattedVal}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                            </svg>
                         </span>
-                        <p class="text-sm font-semibold text-gray-800 truncate">${cust.name}</p>
                     </div>
-                    <span class="text-xs font-extrabold text-gray-900 whitespace-nowrap pl-2 flex items-center gap-1.5">
-                        ${formattedVal}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </span>
-                </div>
-                <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div class="h-full ${progressBarColor} rounded-full transition-all duration-500" style="width: ${percentWidth}%"></div>
-                </div>
-            </button>`;
-    });
+                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                        <div class="h-full ${progressBarColor} rounded-full transition-all duration-500" style="width: ${percentWidth}%"></div>
+                    </div>
+                </button>`;
+        });
+        leaderboardList.innerHTML = html;
 
-    leaderboardList.innerHTML = html;
+    // RENDER BRANCH 2: Sub Brands View
+    } else if (activeLeaderboardTab === 'brands') {
+        leaderboardTitle.textContent = "Sub Brand Performance";
+        leaderboardSubtext.textContent = isSales ? 'Ranked by Net Total Revenue' : 'Ranked by Quantity of Units Sold';
+
+        if (!globalBrandData || Object.keys(globalBrandData).length === 0) {
+            leaderboardList.innerHTML = `
+                <div class="text-center py-8 text-gray-400 text-sm">
+                    No "Sub Brand" or "Brand" column identified in dataset.
+                </div>`;
+            return;
+        }
+
+        const brandsArray = Object.entries(globalBrandData).map(([name, data]) => ({
+            name, sales: data.sales, qty: data.qty
+        }));
+
+        brandsArray.sort((a, b) => isSales ? b.sales - a.sales : b.qty - a.qty);
+        const topBrands = brandsArray.slice(0, 15);
+        const maxValue = topBrands.length > 0 ? (isSales ? topBrands[0].sales : topBrands[0].qty) : 1;
+
+        let html = '';
+        topBrands.forEach((brand, index) => {
+            const rank = index + 1;
+            const currentVal = isSales ? brand.sales : brand.qty;
+            const percentWidth = Math.max((currentVal / maxValue) * 100, 2);
+
+            // Consistent Metallic Medals
+            let rankBadgeClass = 'bg-gray-200 text-gray-700 font-medium';
+            if (rank === 1) rankBadgeClass = 'bg-amber-400 text-amber-950 font-bold shadow-sm'; // Gold
+            else if (rank === 2) rankBadgeClass = 'bg-slate-300 text-slate-900 font-bold shadow-sm'; // Silver
+            else if (rank === 3) rankBadgeClass = 'bg-orange-300 text-orange-950 font-bold shadow-sm'; // Bronze
+
+            const formattedVal = isSales 
+                ? '₱' + currentVal.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                : currentVal.toLocaleString() + ' units';
+
+            html += `
+                <div class="w-full bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadgeClass}">
+                                ${rank}
+                            </span>
+                            <p class="text-sm font-semibold text-gray-800 truncate">${brand.name}</p>
+                        </div>
+                        <span class="text-xs font-extrabold text-gray-900 whitespace-nowrap pl-2">
+                            ${formattedVal}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                        <div class="h-full ${progressBarColor} rounded-full transition-all duration-500" style="width: ${percentWidth}%"></div>
+                    </div>
+                </div>`;
+        });
+        leaderboardList.innerHTML = html;
+    }
 }
 
 // 5. Customer Profile Account Drawer Logic
@@ -368,7 +452,7 @@ function openCustomerProfile(encodedName) {
     let productsMap = {};
     let resolvedAddress = '';
 
-    customerTransactions.forEach((row, index) => {
+    customerTransactions.forEach(row => {
         const sale = salesCol ? parseNumericValue(row[salesCol]) : 0;
         const qty = qtyCol ? parseNumericValue(row[qtyCol]) : 0;
 
@@ -479,7 +563,7 @@ function parseExcelDate(val) {
     return isNaN(parsed) ? null : new Date(parsed);
 }
 
-// 6. Consolidated Metric Toggle Click Handlers
+// 6. Metric Toggle Click Handlers
 toggleSalesBtn.addEventListener('click', () => {
     activeChartMetric = 'sales';
     toggleSalesBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md transition-all bg-brand text-white";
@@ -493,6 +577,21 @@ toggleQtyBtn.addEventListener('click', () => {
     toggleQtyBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md transition-all bg-emerald-600 text-white";
     toggleSalesBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900";
     renderChart();
+    renderLeaderboard();
+});
+
+// Leaderboard Section Tabs
+tabCustomers.addEventListener('click', () => {
+    activeLeaderboardTab = 'customers';
+    tabCustomers.className = "px-3 py-1 text-xs font-bold rounded-md transition-all bg-brand text-white";
+    tabBrands.className = "px-3 py-1 text-xs font-bold rounded-md transition-all text-gray-600 hover:text-gray-900";
+    renderLeaderboard();
+});
+
+tabBrands.addEventListener('click', () => {
+    activeLeaderboardTab = 'brands';
+    tabBrands.className = "px-3 py-1 text-xs font-bold rounded-md transition-all bg-brand text-white";
+    tabCustomers.className = "px-3 py-1 text-xs font-bold rounded-md transition-all text-gray-600 hover:text-gray-900";
     renderLeaderboard();
 });
 
@@ -511,7 +610,7 @@ function findColumnByNames(possibleNames) {
     }) || null;
 }
 
-// Converts standard numeric metrics or currency string values into floats
+// Converts standard numeric metrics or currency string values into floats (strictly sanitizes commas/spaces)
 function parseNumericValue(val) {
     if (typeof val === 'number') return val;
     if (val === undefined || val === null) return 0;
@@ -531,7 +630,8 @@ function parseNumericValue(val) {
         strVal = strVal.slice(1, -1);
     }
     
-    const cleaned = strVal.replace(/[^0-9.]/g, '');
+    // Remove commas, spaces, and non-numeric characters EXCEPT the decimal point
+    const cleaned = strVal.replace(/,/g, '').replace(/\s/g, '').replace(/[^0-9.]/g, '');
     let parsed = parseFloat(cleaned);
     
     if (isNaN(parsed)) return 0;
