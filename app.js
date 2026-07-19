@@ -79,7 +79,7 @@ fileInput.addEventListener('change', function(e) {
         const workbook = XLSX.read(data, { 
             type: 'array',
             cellDates: true,   // Parse dates natively straight out of sheet engine
-            cellStyles: false, // Huge memory/speed improvement
+            cellStyles: true, // Huge memory/speed improvement
             cellFormulas: false,
             cellNF: false 
         });
