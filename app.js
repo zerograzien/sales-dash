@@ -429,35 +429,45 @@ function renderLeaderboard() {
     const progressBarColor = isSales ? 'bg-brand' : 'bg-emerald-600';
 
     if (activeLeaderboardTab === 'customers') {
-        leaderboardTitle.textContent = "Top 15 Customers";
-        leaderboardSubtext.textContent = `Ranked by ${isSales ? 'Net Total' : 'Units Bought'} (Click to open profile)`;
+        const totalCustomerCount = Object.keys(globalCustomerData).length;
+        leaderboardTitle.textContent = `All Customers (${totalCustomerCount.toLocaleString()})`;
+        leaderboardSubtext.textContent = `Ranked by ${isSales ? 'Net Total Revenue' : 'Units Purchased'} (Click row for account details)`;
 
-        if (!globalCustomerData || Object.keys(globalCustomerData).length === 0) {
-            leaderboardList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">No customer data rows mapped.</div>`;
+        if (!globalCustomerData || totalCustomerCount === 0) {
+            leaderboardList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">No mapped customer accounts found.</div>`;
             return;
         }
 
-        const customersArray = Object.entries(globalCustomerData).map(([name, data]) => ({
-            name, sales: data.sales, qty: data.qty
+        // 1. Array Conversion and Total Sort
+        const customersArray = Object.entries(globalCustomerData).map(([name, data]) => ({ 
+            name, 
+            sales: data.sales, 
+            qty: data.qty 
         }));
+        
         customersArray.sort((a, b) => isSales ? b.sales - a.sales : b.qty - a.qty);
-        const topCustomers = customersArray.slice(0, 15);
-        const maxValue = topCustomers.length > 0 ? (isSales ? topCustomers[0].sales : topCustomers[0].qty) : 1;
+        
+        // Dynamic scaling basis relative to top customer
+        const maxValue = customersArray.length > 0 ? (isSales ? customersArray[0].sales : customersArray[0].qty) : 1;
 
+        // 2. Loop & Render Entire Customer Base
         let html = '';
-        topCustomers.forEach((cust, index) => {
-            const rank = index + 1;
+        const totalCount = customersArray.length;
+        for (let i = 0; i < totalCount; i++) {
+            const cust = customersArray[i];
+            const rank = i + 1;
             const currentVal = isSales ? cust.sales : cust.qty;
-            const percentWidth = Math.max((currentVal / maxValue) * 100, 2);
+            const percentWidth = Math.max((currentVal / maxValue) * 100, 1.5);
 
-            let rankBadgeClass = 'bg-gray-200 text-gray-700 font-medium';
+            // Top 3 Visual Badges
+            let rankBadgeClass = 'bg-gray-100 text-gray-600 font-medium';
             if (rank === 1) rankBadgeClass = 'bg-amber-400 text-amber-950 font-bold shadow-sm';
             else if (rank === 2) rankBadgeClass = 'bg-slate-300 text-slate-900 font-bold shadow-sm';
             else if (rank === 3) rankBadgeClass = 'bg-orange-300 text-orange-950 font-bold shadow-sm';
 
             html += `
                 <button onclick="openCustomerProfile('${encodeURIComponent(cust.name)}')" 
-                        class="w-full text-left bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5 transition duration-150 hover:shadow-md hover:border-gray-300 hover:scale-[1.01] focus:outline-none cursor-pointer">
+                        class="w-full text-left bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5 hover:shadow-md hover:border-gray-300 transition focus:outline-none cursor-pointer">
                     <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadgeClass}">${rank}</span>
@@ -472,49 +482,34 @@ function renderLeaderboard() {
                         <div class="h-full ${progressBarColor} rounded-full" style="width: ${percentWidth}%"></div>
                     </div>
                 </button>`;
-        });
+        }
+        
         leaderboardList.innerHTML = html;
 
     } else if (activeLeaderboardTab === 'brands') {
         leaderboardTitle.textContent = "Sub Brand Performance";
-        leaderboardSubtext.textContent = `Ranked by ${isSales ? 'Revenue metrics' : 'Quantities sold'}`;
+        leaderboardSubtext.textContent = `Ranked by ${isSales ? 'Revenue' : 'Quantities'}`;
 
         if (!globalBrandData || Object.keys(globalBrandData).length === 0) {
-            leaderboardList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">No "Sub Brand" column mapped.</div>`;
+            leaderboardList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">No Sub Brand column mapped.</div>`;
             return;
         }
 
-        const brandsArray = Object.entries(globalBrandData).map(([name, data]) => ({
-            name, sales: data.sales, qty: data.qty
-        }));
+        const brandsArray = Object.entries(globalBrandData).map(([name, data]) => ({ name, sales: data.sales, qty: data.qty }));
         brandsArray.sort((a, b) => isSales ? b.sales - a.sales : b.qty - a.qty);
-        const topBrands = brandsArray.slice(0, 15);
-        const maxValue = topBrands.length > 0 ? (isSales ? topBrands[0].sales : topBrands[0].qty) : 1;
+        const maxValue = brandsArray.length > 0 ? (isSales ? brandsArray[0].sales : brandsArray[0].qty) : 1;
 
         let html = '';
-        topBrands.forEach((brand, index) => {
-            const rank = index + 1;
+        brandsArray.forEach((brand, index) => {
             const currentVal = isSales ? brand.sales : brand.qty;
-            const percentWidth = Math.max((currentVal / maxValue) * 100, 2);
-
-            let rankBadgeClass = 'bg-gray-200 text-gray-700 font-medium';
-            if (rank === 1) rankBadgeClass = 'bg-amber-400 text-amber-950 font-bold shadow-sm';
-            else if (rank === 2) rankBadgeClass = 'bg-slate-300 text-slate-900 font-bold shadow-sm';
-            else if (rank === 3) rankBadgeClass = 'bg-orange-300 text-orange-950 font-bold shadow-sm';
-
             html += `
                 <div class="w-full bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5">
                     <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadgeClass}">${rank}</span>
-                            <p class="text-sm font-semibold text-gray-800 truncate">${brand.name}</p>
-                        </div>
-                        <span class="text-xs font-extrabold text-gray-900 whitespace-nowrap pl-2">
-                            ${isSales ? formatCurrency(currentVal) : brand.qty.toLocaleString() + ' units'}
-                        </span>
+                        <p class="text-sm font-semibold text-gray-800 truncate">${index + 1}. ${brand.name}</p>
+                        <span class="text-xs font-extrabold text-gray-900">${isSales ? formatCurrency(currentVal) : currentVal.toLocaleString() + ' units'}</span>
                     </div>
                     <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                        <div class="h-full ${progressBarColor} rounded-full" style="width: ${percentWidth}%"></div>
+                        <div class="h-full ${progressBarColor} rounded-full" style="width: ${(currentVal / maxValue) * 100}%"></div>
                     </div>
                 </div>`;
         });
