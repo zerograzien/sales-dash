@@ -172,6 +172,21 @@ function processParsedRows(rows) {
                 lastDate: rawDate,
                 products: {}
             };
+        } else {
+            // Update earliest (first) and latest (last/active) dates as we process rows
+            const currentDateObj = parseExcelDate(rawDate);
+            const existingFirstObj = parseExcelDate(globalCustomerData[custName].firstDate);
+            const existingLastObj = parseExcelDate(globalCustomerData[custName].lastDate);
+
+            if (currentDateObj) {
+                if (!existingFirstObj || currentDateObj < existingFirstObj) {
+                    globalCustomerData[custName].firstDate = rawDate;
+                }
+                if (!existingLastObj || currentDateObj > existingLastObj) {
+                    globalCustomerData[custName].lastDate = rawDate;
+                }
+            }
+        }
         }
         globalCustomerData[custName].sales += sales;
         globalCustomerData[custName].qty += qty;
