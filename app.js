@@ -187,7 +187,6 @@ function processParsedRows(rows) {
                 }
             }
         }
-        }
         globalCustomerData[custName].sales += sales;
         globalCustomerData[custName].qty += qty;
         globalCustomerData[custName].cases += cases;
