@@ -416,7 +416,8 @@ function renderLeaderboard() {
         listEl.innerHTML = html || `<p class="text-xs text-gray-400 py-4 text-center">No customers found.</p>`;
 
     } else {
-        titleEl.textContent = "Sub Brand Performance";
+        const totalBrands = Object.keys(globalBrandData).length;
+        titleEl.textContent = `Sub Brand Performance (${formatNumber(totalBrands)})`;
         subtextEl.textContent = `Ranked by ${isSales ? 'Revenue' : (isCases ? 'Cases' : 'Units')}`;
 
         const brands = Object.entries(globalBrandData).map(([name, data]) => ({ name, ...data }));
@@ -425,14 +426,23 @@ function renderLeaderboard() {
 
         let html = '';
         brands.forEach((brand, idx) => {
+            const rank = idx + 1;
             const val = getVal(brand);
             const pctWidth = Math.max((val / maxVal) * 100, 1.5);
+
+            let rankBadge = 'bg-gray-100 text-gray-600 font-medium';
+            if (rank === 1) rankBadge = 'bg-amber-400 text-amber-950 font-bold';
+            else if (rank === 2) rankBadge = 'bg-slate-300 text-slate-900 font-bold';
+            else if (rank === 3) rankBadge = 'bg-orange-300 text-orange-950 font-bold';
 
             html += `
                 <div class="w-full bg-white p-3.5 rounded-lg border border-gray-150 shadow-sm flex flex-col space-y-1.5">
                     <div class="flex items-center justify-between w-full">
-                        <p class="text-sm font-semibold text-gray-800 truncate">${idx + 1}. ${brand.name}</p>
-                        <span class="text-xs font-extrabold text-gray-900">${formatVal(val)}</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full shrink-0 ${rankBadge}">${rank}</span>
+                            <p class="text-sm font-semibold text-gray-800 truncate">${brand.name}</p>
+                        </div>
+                        <span class="text-xs font-extrabold text-gray-900 whitespace-nowrap pl-2">${formatVal(val)}</span>
                     </div>
                     <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                         <div class="h-full ${barColor} rounded-full" style="width: ${pctWidth}%"></div>
